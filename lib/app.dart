@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'features/auth/auth_provider.dart';
 import 'features/auth/auth_screen.dart';
-import 'features/tasks/screens/task_list_screen.dart';
+import 'app/home_screen.dart';
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
@@ -25,9 +26,9 @@ class MyApp extends ConsumerWidget {
       home: authState.when(
         data: (user) {
           if (user == null) {
-            return AuthScreen();
+            return AuthScreen(); // ✅ NOT const
           }
-          return const TaskListScreen();
+          return const HomeScreen(); // ✅ correct
         },
         loading: () => const Scaffold(
           body: Center(child: CircularProgressIndicator()),

@@ -5,9 +5,6 @@ import '../models/task_model.dart';
 import 'add_task_screen.dart';
 import '../task_filter_provider.dart';
 
-
-
-
 class TaskListScreen extends ConsumerWidget {
   const TaskListScreen({super.key});
 
@@ -15,7 +12,8 @@ class TaskListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final taskAsync = ref.watch(taskListProvider);
     final filter = ref.watch(taskFilterProvider);
-
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
@@ -36,85 +34,163 @@ class TaskListScreen extends ConsumerWidget {
         const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text(e.toString())),
         data: (tasks) {
-          if (tasks.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(
-                    Icons.task_alt,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No tasks yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Tap + to add your first task',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          var filteredTasks = tasks;
-
-          // Priority filter
-          if (filter.priority != null) {
-            filteredTasks = filteredTasks
-                .where((t) => t.priority == filter.priority)
-                .toList();
-          }
-
-          // Status filter
-          if (filter.status == TaskStatusFilter.completed) {
-            filteredTasks =
-                filteredTasks.where((t) => t.isCompleted).toList();
-          } else if (filter.status == TaskStatusFilter.incomplete) {
-            filteredTasks =
-                filteredTasks.where((t) => !t.isCompleted).toList();
-          }
-
-          final today = <TaskModel>[];
-          final tomorrow = <TaskModel>[];
-          final thisWeek = <TaskModel>[];
-
           final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
 
-          for (final task in filteredTasks) {
+          // 1️⃣ Filter tasks for TODAY only
+          var todayTasks = tasks.where((task) {
+            final taskDate = DateTime(
+              task.dueDate.year,
+              task.dueDate.month,
+              task.dueDate.day,
+            );
+            return taskDate == today;
+          }).toList();
 
-            final diff =
-                task.dueDate.difference(DateTime(now.year, now.month, now.day)).inDays;
-
-            if (diff == 0) {
-              today.add(task);
-            } else if (diff == 1) {
-              tomorrow.add(task);
-            } else if (diff > 1 && diff <= 7) {
-              thisWeek.add(task);
-            }
+          // 2️⃣ Apply DONE / NOT DONE filter
+          if (filter.status == TaskStatusFilter.completed) {
+            todayTasks = todayTasks.where((t) => t.isCompleted).toList();
+          } else if (filter.status == TaskStatusFilter.incomplete) {
+            todayTasks = todayTasks.where((t) => !t.isCompleted).toList();
           }
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _FilterBar(),
-              const SizedBox(height: 16),
+          // 3️⃣ Apply PRIORITY filter
+          if (filter.priority != null) {
+            todayTasks =
+                todayTasks.where((t) => t.priority == filter.priority).toList();
+          }
 
-              if (today.isNotEmpty)
-                _TaskSection(title: 'Today', tasks: today),
-              if (tomorrow.isNotEmpty)
-                _TaskSection(title: 'Tomorrow', tasks: tomorrow),
-              if (thisWeek.isNotEmpty)
-                _TaskSection(title: 'This week', tasks: thisWeek),
+          // 4️⃣ Empty state
+          return Column(
+            children: [
+              // ✅ FILTER BAR IS BACK
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: _FilterBar(),
+              ),
+
+              Expanded(
+                child: todayTasks.isEmpty
+                    ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(
+                        Icons.task_alt,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'No tasks for today',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        "You're all caught up 🎉",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                )
+                    : ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: todayTasks.map((task) {
+                    return Dismissible(
+                      key: Key(task.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child:
+                        const Icon(Icons.delete, color: Colors.white),
+                      ),
+                      confirmDismiss: (_) async {
+                        return await showDialog<bool>(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text('Delete task?'),
+                            content:
+                            const Text('This action cannot be undone.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(context, false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(context, true),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      onDismissed: (_) {
+                        ref
+                            .read(taskServiceProvider)
+                            .deleteTask(task.id);
+                      },
+                      child: _TaskCard(task: task),
+                    );
+                  }).toList(),
+                ),
+              ),
             ],
+          );
+
+
+          // 5️⃣ Render today's tasks
+          return ListView(
+          padding: const EdgeInsets.all(16),
+          children: todayTasks.map((task) { // ✅ Fixed: changed from filteredTasks to todayTasks
+          return Dismissible(
+          key: Key(task.id),
+          direction: DismissDirection.endToStart,
+          background: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(Icons.delete, color: Colors.white),
+          ),
+          confirmDismiss: (_) async {
+          return await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+          title: const Text('Delete task?'),
+          content: const Text('This action cannot be undone.'),
+          actions: [
+          TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+          ),
+          TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Delete'),
+          ),
+          ],
+          ),
+          );
+          },
+          onDismissed: (_) {
+          ref.read(taskServiceProvider).deleteTask(task.id);
+          },
+          child: _TaskCard(task: task),
+          );
+          }).toList(),
           );
         },
       ),
@@ -131,10 +207,10 @@ class TaskListScreen extends ConsumerWidget {
         },
         child: const Icon(Icons.add),
       ),
-
     );
   }
 }
+
 class _TaskSection extends ConsumerWidget {
   final String title;
   final List<TaskModel> tasks;
@@ -157,7 +233,6 @@ class _TaskSection extends ConsumerWidget {
             letterSpacing: 0.3,
           ),
         ),
-
         const SizedBox(height: 12),
         ...tasks.map(
               (task) => Dismissible(
@@ -175,30 +250,29 @@ class _TaskSection extends ConsumerWidget {
                 color: Colors.white,
               ),
             ),
-                confirmDismiss: (_) async {
-                  return await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Delete task?'),
-                      content: const Text('This action cannot be undone.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Delete'),
-                        ),
-                      ],
+            confirmDismiss: (_) async {
+              return await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Delete task?'),
+                  content: const Text('This action cannot be undone.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
                     ),
-                  );
-                },
-                onDismissed: (_) {
-                  ref.read(taskServiceProvider).deleteTask(task.id);
-                },
-
-                child: _TaskCard(task: task),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Delete'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            onDismissed: (_) {
+              ref.read(taskServiceProvider).deleteTask(task.id);
+            },
+            child: _TaskCard(task: task),
           ),
         ),
         const SizedBox(height: 24),
@@ -329,9 +403,7 @@ class _FilterBar extends ConsumerWidget {
             ),
           ],
         ),
-
         const SizedBox(height: 12),
-
         // Status filter
         Wrap(
           spacing: 8,
@@ -363,7 +435,6 @@ class _PriorityChip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filter = ref.watch(taskFilterProvider);
-
     final isSelected = filter.priority == priority;
 
     return ChoiceChip(
@@ -376,4 +447,3 @@ class _PriorityChip extends ConsumerWidget {
     );
   }
 }
-
