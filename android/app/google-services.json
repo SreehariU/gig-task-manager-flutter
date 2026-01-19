@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "909168844745",
+    "project_id": "gig-task-manager-sreehar-abe70",
+    "storage_bucket": "gig-task-manager-sreehar-abe70.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:909168844745:android:447d5760a5e63b5a215218",
+        "android_client_info": {
+          "package_name": "com.example.gig_task_manager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAu3s__gzTETpGAYRNUwFbX8Es7jT2zZCY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
