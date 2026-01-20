@@ -224,11 +224,6 @@ flutter pub get
 flutter run
 ```
 
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
@@ -238,7 +233,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Flutter Developer | Firebase | Mobile Apps
 
 - GitHub: [@SreehariU](https://github.com/SreehariU)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/your-profile)
+
 
 ---
 
